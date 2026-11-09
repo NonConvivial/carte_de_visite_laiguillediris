@@ -386,24 +386,98 @@
                 }
             }
 
-            btn.addEventListener('click', function () {
-                var url = location.origin + location.pathname;
-                var data = {
-                    title: "L'aiguille d'Iris - Couturière",
-                    text: "Carte de visite de L'aiguille d'Iris, couturière à Baie-Mahault (Guadeloupe)",
-                    url: url
-                };
+            // ---- Fiche contact (vCard) : s'ouvre dans « Contacts » avec « Ajouter » ----
+            var isWeb = /^https?:$/.test(location.protocol);
+            var pageUrl = isWeb ? location.origin + location.pathname : '';
+            var photoB64 = '';
 
-                // Menu de partage natif : iPhone (Safari) et Android (Chrome, Samsung Internet…)
-                if (navigator.share) {
-                    navigator.share(data).catch(function (err) {
-                        if (err && err.name === 'AbortError') return; // l'utilisateur a fermé le menu
-                        copyLink(url);
-                    });
-                } else {
-                    // Ordinateur / navigateur sans partage natif : on copie le lien
-                    copyLink(url);
+            function fold(line) { // la norme vCard limite les lignes à 75 caractères
+                var out = [];
+                while (line.length > 75) {
+                    out.push(line.slice(0, 75));
+                    line = ' ' + line.slice(75);
                 }
+                out.push(line);
+                return out.join('\r\n');
+            }
+
+            function buildVcf() {
+                var lines = [
+                    'BEGIN:VCARD',
+                    'VERSION:3.0',
+                    'N:Bonopera;Iris;;;',
+                    'FN:Iris Bonopera',
+                    "ORG:L'aiguille d'Iris",
+                    'TITLE:Couturière',
+                    'TEL;TYPE=CELL,VOICE:+590690382941',
+                    'EMAIL;TYPE=INTERNET:laiguillediris@gmail.com',
+                    'ADR;TYPE=WORK:;;;Baie-Mahault;;;Guadeloupe',
+                    'URL:https://www.instagram.com/laiguillediris/',
+                    'NOTE:Couturière - Baie-Mahault\\, Guadeloupe'
+                ];
+                if (pageUrl) lines.push('URL:' + pageUrl);
+                if (photoB64) lines.push('PHOTO;ENCODING=b;TYPE=PNG:' + photoB64);
+                lines.push('END:VCARD');
+                return lines.map(fold).join('\r\n') + '\r\n';
+            }
+
+            function buildFile() {
+                return new File([buildVcf()], 'Iris-Bonopera-Aiguille-d-Iris.vcf', { type: 'text/vcard' });
+            }
+
+            // Photo du contact (logo) : chargée à l'avance pour que le clic reste immédiat
+            if (isWeb && window.fetch && window.FileReader) {
+                fetch('logo.png').then(function (r) { return r.blob(); }).then(function (blob) {
+                    var fr = new FileReader();
+                    fr.onload = function () {
+                        var s = String(fr.result);
+                        photoB64 = s.slice(s.indexOf(',') + 1);
+                    };
+                    fr.readAsDataURL(blob);
+                }).catch(function () {});
+            }
+
+            function downloadVcf(file) {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(file);
+                a.download = file.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+                showToast('Fiche contact téléchargée');
+            }
+
+            btn.addEventListener('click', function () {
+                var text = "Contact de L'aiguille d'Iris, couturière à Baie-Mahault (Guadeloupe)"
+                         + (pageUrl ? '\n' + pageUrl : '');
+                var file;
+                try { file = buildFile(); } catch (e) { file = null; }
+
+                // 1) Partage de la fiche contact via WhatsApp, SMS, Mail, AirDrop…
+                //    (iPhone Safari, Android Chrome / Samsung Internet)
+                if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({ files: [file], title: "L'aiguille d'Iris", text: text })
+                        .catch(function (err) {
+                            if (err && err.name === 'AbortError') return;
+                            downloadVcf(file);
+                        });
+                    return;
+                }
+
+                // 2) Navigateur qui ne partage pas de fichier : on partage le lien
+                if (navigator.share && pageUrl) {
+                    navigator.share({ title: "L'aiguille d'Iris - Couturière", text: text, url: pageUrl })
+                        .catch(function (err) {
+                            if (err && err.name === 'AbortError') return;
+                            copyLink(pageUrl);
+                        });
+                    return;
+                }
+
+                // 3) Ordinateur : téléchargement de la fiche contact (.vcf)
+                if (file) downloadVcf(file);
+                else if (pageUrl) copyLink(pageUrl);
             });
         })();
     </script>
