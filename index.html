@@ -24,47 +24,11 @@
             margin: 0 auto;
         }
         
-        .programme-section {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            border: 2px solid #f5d5c8;
-        }
-        
-        .programme-image {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            display: block;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .divider-section {
-            text-align: center;
-            margin: 40px 0;
-        }
-        
-        .divider-line {
-            height: 2px;
-            background: linear-gradient(to right, transparent, #1a1a1a, transparent);
-            margin: 15px 0;
-        }
-        
-        .divider-text {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 20px;
-            color: #1a1a1a;
-            font-weight: 300;
-        }
-        
         .card-container {
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 60vh;
+            min-height: calc(100vh - 40px);
         }
         
         .card {
@@ -225,6 +189,50 @@
             background: #e8c4b8;
         }
         
+        .contact-btn.share {
+            width: 100%;
+            font-family: inherit;
+            background: white;
+            color: #1a1a1a;
+            border: 1px dashed #1a1a1a;
+            -webkit-appearance: none;
+            appearance: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .contact-btn.share:hover {
+            background: #f5d5c8;
+        }
+
+        .contact-btn.share:focus-visible {
+            outline: 3px solid #1a1a1a;
+            outline-offset: 2px;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: calc(24px + env(safe-area-inset-bottom));
+            transform: translate(-50%, 20px);
+            background: #1a1a1a;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 999px;
+            font-size: 14px;
+            max-width: calc(100% - 40px);
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 10;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
         .icon {
             width: 24px;
             height: 24px;
@@ -250,28 +258,10 @@
             color: #4a4a4a;
             font-size: 12px;
         }
-        
-        @media (max-width: 768px) {
-            .programme-section {
-                padding: 20px;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Section Programme -->
-        <div class="programme-section">
-            <img src="QUIZZ.png" alt="Programme L'aiguille d'Iris" class="programme-image">
-        </div>
-        
-        <!-- Séparateur -->
-        <div class="divider-section">
-            <div class="divider-line"></div>
-            <p class="divider-text">Mes Coordonnées</p>
-            <div class="divider-line"></div>
-        </div>
-        
         <!-- Carte de visite -->
         <div class="card-container">
             <div class="card">
@@ -331,6 +321,15 @@
                             <span class="label">Appeler</span>
                         </div>
                     </a>
+
+                    <button type="button" id="share-btn" class="contact-btn share">
+                        <div class="btn-content">
+                            <svg class="icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            <span class="label">Partager la carte de visite</span>
+                        </div>
+                    </button>
                 </div>
                 
                 <div class="footer">
@@ -339,5 +338,74 @@
             </div>
         </div>
     </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (function () {
+            var btn = document.getElementById('share-btn');
+            var toast = document.getElementById('toast');
+            var timer;
+
+            function showToast(msg) {
+                toast.textContent = msg;
+                toast.classList.add('show');
+                clearTimeout(timer);
+                timer = setTimeout(function () { toast.classList.remove('show'); }, 2500);
+            }
+
+            // Copie de secours (anciens navigateurs, ou HTTP)
+            function legacyCopy(text) {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.opacity = '0';
+                ta.style.fontSize = '16px'; // évite le zoom automatique sur iPhone
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                ta.setSelectionRange(0, text.length);
+                var ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(ta);
+                return ok;
+            }
+
+            function copyLink(url) {
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(url).then(
+                        function () { showToast('Lien copié !'); },
+                        function () {
+                            showToast(legacyCopy(url) ? 'Lien copié !' : 'Copiez ce lien : ' + url);
+                        }
+                    );
+                } else {
+                    showToast(legacyCopy(url) ? 'Lien copié !' : 'Copiez ce lien : ' + url);
+                }
+            }
+
+            btn.addEventListener('click', function () {
+                var url = location.origin + location.pathname;
+                var data = {
+                    title: "L'aiguille d'Iris - Couturière",
+                    text: "Carte de visite de L'aiguille d'Iris, couturière à Baie-Mahault (Guadeloupe)",
+                    url: url
+                };
+
+                // Menu de partage natif : iPhone (Safari) et Android (Chrome, Samsung Internet…)
+                if (navigator.share) {
+                    navigator.share(data).catch(function (err) {
+                        if (err && err.name === 'AbortError') return; // l'utilisateur a fermé le menu
+                        copyLink(url);
+                    });
+                } else {
+                    // Ordinateur / navigateur sans partage natif : on copie le lien
+                    copyLink(url);
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
